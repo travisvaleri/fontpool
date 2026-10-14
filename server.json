@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.travisvaleri/fontpool",
-  "description": "Search Fontshare, Fontsource, Google and Bunny as one catalog, then self-host the woff2 files.",
+  "description": "Search fonts by category, tag and variable axis across three providers, then self-host them.",
   "repository": {
     "url": "https://github.com/travisvaleri/fontpool",
     "source": "github"
   },
-  "version": "1.1.0",
+  "version": "1.4.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "fontpool",
-      "version": "1.1.0",
+      "version": "1.4.0",
       "transport": {
         "type": "stdio"
       }
