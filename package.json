@@ -1,7 +1,7 @@
 {
   "name": "fontpool",
-  "version": "1.1.0",
-  "description": "MCP server that searches Fontshare, Fontsource, Google and Bunny in one catalog, downloads real woff2 files into your project and writes the @font-face rules.",
+  "version": "1.4.0",
+  "description": "MCP server that searches Fontshare, Fontsource and Google as one catalog with categories, tags and foundry descriptions, downloads real woff2 files into your project and writes the @font-face rules.",
   "type": "module",
   "license": "MIT",
   "author": "Travis Valeri",
@@ -26,16 +26,18 @@
     "fontshare",
     "fontsource",
     "google-fonts",
-    "bunny-fonts",
     "unifont",
     "self-hosted",
-    "claude"
+    "claude",
+    "skill",
+    "type-design"
   ],
   "bin": {
     "fontpool": "server.mjs"
   },
   "files": [
     "server.mjs",
+    "SKILL.md",
     "README.md",
     "LICENSE"
   ],

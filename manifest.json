@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "fontpool",
   "display_name": "Fontpool",
-  "version": "1.1.0",
+  "version": "1.4.0",
   "description": "Search Fontshare, Fontsource, Google and Bunny in one catalog, then download fonts into your project and write the @font-face rules.",
   "long_description": "Gives Claude three tools for working with type: list_fonts to see every family available across the configured providers, font_properties to check a family's weights, styles and subsets, and install_font to download the actual woff2 files into a project folder and append the matching @font-face rules to a CSS file.\n\nFonts are self-hosted \u2014 no CDN request at runtime. Built on unifont.\n\nAdobe Fonts is deliberately not included: Adobe's terms require their fonts be loaded from their own CDN via a kit embed, so they can't be downloaded into a project.",
   "author": {
