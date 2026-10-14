@@ -22,6 +22,7 @@ import {
   access,
   realpath,
   stat,
+  unlink,
 } from "node:fs/promises";
 import {
   join,
@@ -72,7 +73,7 @@ const getUnifont = () =>
 
 const PROVIDERS = ["fontshare", "fontsource", "google"];
 
-const server = new McpServer({ name: "fontpool", version: "1.4.0" });
+const server = new McpServer({ name: "fontpool", version: "1.4.1" });
 
 const exists = (p) => access(p).then(() => true, () => false);
 
@@ -925,6 +926,67 @@ server.registerTool(
   }
 );
 
+/* -------------------------------------------------------------- download */
+
+// What the first four bytes say the payload is. woff2 files start 'wOF2';
+// anything else means the download is not what the URL promised, and the one
+// case worth naming is an error page served under HTTP 200 — written out as a
+// .woff2 with a matching @font-face rule, it makes an install that reports
+// success and renders in the fallback, with nothing anywhere saying why.
+const FONT_MAGIC = {
+  wOF2: "woff2",
+  wOFF: "a woff (not woff2) file",
+  OTTO: "an OpenType (.otf) file",
+  ttcf: "a TrueType collection",
+  true: "a TrueType (.ttf) file",
+  "\u0000\u0001\u0000\u0000": "a TrueType (.ttf) file",
+};
+
+/** What arrived, in words, for a payload that is not woff2. */
+export const describeBytes = (buf) => {
+  const named = FONT_MAGIC[buf.toString("latin1", 0, 4)];
+  if (named) return named;
+  if (/^[\s\ufeff]*[<{]/.test(buf.toString("latin1", 0, 32))) {
+    return "an HTML or JSON response, not a font";
+  }
+  return `${buf.length} bytes that are not a font`;
+};
+
+export const isWoff2 = (buf) => buf.length >= 4 && buf.toString("latin1", 0, 4) === "wOF2";
+
+// Downloads are where install_font spends its wall clock: four weights across
+// two styles and two subsets is sixteen files, and fetched one after another
+// that was sixteen round trips end to end. Six in flight is well within what
+// these CDNs expect and collapses the common install to roughly one.
+const DOWNLOAD_CONCURRENCY = 6;
+
+/**
+ * Fetch every URL, at most `concurrency` in flight, preserving input order.
+ * Never throws: each slot resolves to {buf} or {error}, so one bad URL
+ * reports itself instead of abandoning the rest mid-flight.
+ */
+export async function downloadAll(urls, concurrency = DOWNLOAD_CONCURRENCY) {
+  const out = new Array(urls.length);
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < urls.length; i = next++) {
+      try {
+        const res = await fetch(urls[i]);
+        if (!res.ok) {
+          out[i] = { error: `HTTP ${res.status}` };
+          continue;
+        }
+        const buf = Buffer.from(await res.arrayBuffer());
+        out[i] = isWoff2(buf) ? { buf } : { error: `returned ${describeBytes(buf)}` };
+      } catch (err) {
+        out[i] = { error: err.message };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, urls.length) }, worker));
+  return out;
+}
+
 /* --------------------------------------------------------------- install */
 
 server.registerTool(
@@ -993,6 +1055,12 @@ server.registerTool(
     subsets = ["latin", "latin-ext"],
     urlPrefix = "/fonts",
   }) => {
+    // '/fonts/' and '/fonts' name the same place, but joined with the filename
+    // the first produced url('/fonts//inter-400.woff2'): served by most static
+    // hosts, cached under a different key by some, and simply the wrong URL in
+    // a file whose whole job is correct URLs.
+    urlPrefix = urlPrefix.replace(/\/+$/, "");
+
     const root = await projectRoot();
     if (!isAbsolute(targetDir) || !isAbsolute(cssPath)) {
       if (!root) {
@@ -1093,102 +1161,154 @@ server.registerTool(
       };
     }
 
-    await mkdir(targetDir, { recursive: true });
-    const blocks = [];
-    const written = [];
-
+    // Every face that has a file behind it. A local-only source — a provider
+    // naming a font it expects to find on the machine — has nothing to fetch.
+    const jobs = [];
     for (const face of resolved.fonts) {
       const remotes = face.src.filter((s) => "url" in s && s.url);
       const remote = remotes.find((s) => s.format === "woff2") ?? remotes[0];
-      if (!remote) continue; // local-only source, nothing to download
+      if (!remote) continue;
 
       // Fontshare serves protocol-relative URLs ("//cdn.fontshare.com/..."),
       // which fetch rejects; resolve them against https.
-      const url = remote.url.startsWith("//") ? `https:${remote.url}` : remote.url;
-
-      let res;
-      try {
-        res = await fetch(url);
-      } catch (err) {
-        return {
-          content: [
-            { type: "text", text: `Download failed for ${url}: ${err.message}` },
-          ],
-          isError: true,
-        };
-      }
-      if (!res.ok) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Download failed for ${url} (HTTP ${res.status}).`,
-            },
-          ],
-          isError: true,
-        };
-      }
-      const buf = Buffer.from(await res.arrayBuffer());
-
-      const weight = Array.isArray(face.weight)
-        ? face.weight.join(" ")
-        : face.weight ?? 400;
-      const style = face.style ?? "normal";
-
-      // Name files by what they contain. Not every provider reports a subset
-      // (Fontshare doesn't), so weight and style do the describing and the
-      // content hash keeps same-named faces from colliding.
-      const hash = createHash("sha1").update(buf).digest("hex").slice(0, 8);
-      const name =
-        [family, String(weight), style, face.meta?.subset]
-          .filter(Boolean)
-          .join("-")
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-") + `-${hash}.woff2`;
-
-      const dest = join(targetDir, name);
-      if (!(await exists(dest))) await writeFile(dest, buf);
-      written.push(`${name} (${(buf.length / 1024).toFixed(1)} KB)`);
-
-      blocks.push(
-        [
-          `@font-face {`,
-          `  font-family: '${family}';`,
-          `  font-style: ${style};`,
-          `  font-weight: ${weight};`,
-          `  font-display: ${face.display ?? "swap"};`,
-          `  src: url('${urlPrefix}/${name}') format('woff2');`,
-          face.unicodeRange?.length
-            ? `  unicode-range: ${face.unicodeRange.join(", ")};`
-            : null,
-          `}`,
-        ]
-          .filter(Boolean)
-          .join("\n")
-      );
+      jobs.push({
+        face,
+        url: remote.url.startsWith("//") ? `https:${remote.url}` : remote.url,
+      });
     }
 
-    // Re-installing must not stack duplicate rules. A rule is the same face
-    // when everything but its src matches; if one exists, swap its src in
-    // place (the file may have changed upstream) instead of appending.
-    await mkdir(dirname(cssPath), { recursive: true });
-    const sheetExisted = await exists(cssPath);
-    let sheet = sheetExisted ? await readFile(cssPath, "utf8") : "";
+    if (!jobs.length) {
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `'${family}' resolved to ${resolved.fonts.length} face(s), but none ` +
+              `of them names a file to download — every source is a reference to ` +
+              `a local font. There is nothing here to self-host.`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Nothing is written until every face is in hand. Downloading straight
+    // into the target directory meant a fetch that failed halfway left the
+    // files it had already written on disk with no rule naming them: orphans
+    // indistinguishable from a font in use. Installing only the faces that did
+    // arrive is no better — a family missing the weight that was asked for
+    // looks exactly like success at the call site.
+    const downloads = await downloadAll(jobs.map((j) => j.url));
+    const failures = downloads
+      .map((d, i) => (d.error ? `  ${jobs[i].url} — ${d.error}` : null))
+      .filter(Boolean);
+    if (failures.length) {
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `${failures.length} of ${jobs.length} font file(s) failed to ` +
+              `download, so nothing was written:\n` +
+              failures.slice(0, 5).join("\n") +
+              (failures.length > 5 ? `\n  …and ${failures.length - 5} more.` : ""),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    await mkdir(targetDir, { recursive: true });
+    const blocks = [];
+    const written = [];
+    // Only the files this call brought into existence, so a failure further in
+    // can undo its own work without deleting a font that was already there.
+    const created = [];
     const fresh = [];
     let updated = 0;
-    for (const block of blocks) {
-      const existing = sheet.match(FACE_RULE)?.find((r) => faceKey(r) === faceKey(block));
-      if (!existing) fresh.push(block);
-      else if (existing !== block) {
-        sheet = sheet.replace(existing, () => block);
-        updated++;
+    let sheetExisted = false;
+
+    try {
+      for (const [i, { face }] of jobs.entries()) {
+        const buf = downloads[i].buf;
+        const weight = Array.isArray(face.weight)
+          ? face.weight.join(" ")
+          : face.weight ?? 400;
+        const style = face.style ?? "normal";
+
+        // Name files by what they contain. Not every provider reports a subset
+        // (Fontshare doesn't), so weight and style do the describing and the
+        // content hash keeps same-named faces from colliding.
+        const hash = createHash("sha1").update(buf).digest("hex").slice(0, 8);
+        const name =
+          [family, String(weight), style, face.meta?.subset]
+            .filter(Boolean)
+            .join("-")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-") + `-${hash}.woff2`;
+
+        const dest = join(targetDir, name);
+        if (!(await exists(dest))) {
+          await writeFile(dest, buf);
+          created.push(dest);
+        }
+        written.push(`${name} (${(buf.length / 1024).toFixed(1)} KB)`);
+
+        blocks.push(
+          [
+            `@font-face {`,
+            `  font-family: '${family}';`,
+            `  font-style: ${style};`,
+            `  font-weight: ${weight};`,
+            `  font-display: ${face.display ?? "swap"};`,
+            `  src: url('${urlPrefix}/${name}') format('woff2');`,
+            face.unicodeRange?.length
+              ? `  unicode-range: ${face.unicodeRange.join(", ")};`
+              : null,
+            `}`,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        );
       }
+
+      // Re-installing must not stack duplicate rules. A rule is the same face
+      // when everything but its src matches; if one exists, swap its src in
+      // place (the file may have changed upstream) instead of appending.
+      await mkdir(dirname(cssPath), { recursive: true });
+      sheetExisted = await exists(cssPath);
+      let sheet = sheetExisted ? await readFile(cssPath, "utf8") : "";
+      for (const block of blocks) {
+        const existing = sheet.match(FACE_RULE)?.find((r) => faceKey(r) === faceKey(block));
+        if (!existing) fresh.push(block);
+        else if (existing !== block) {
+          sheet = sheet.replace(existing, () => block);
+          updated++;
+        }
+      }
+      if (fresh.length) {
+        const css = `/* ${family} — via ${resolved.provider} */\n${fresh.join("\n\n")}\n`;
+        sheet = sheet ? `${sheet.replace(/\n*$/, "\n")}\n${css}` : css;
+      }
+      if (fresh.length || updated) await writeFile(cssPath, sheet);
+    } catch (err) {
+      // The same rule on the way out as on the way in: no half-installed
+      // family. A stylesheet that could not be written would otherwise leave
+      // woff2 files behind that nothing references.
+      await Promise.all(created.map((p) => unlink(p).catch(() => {})));
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `Writing into the project failed: ${err.message}. ` +
+              `The ${created.length} file(s) this call had written were removed, ` +
+              `so nothing is half-installed.`,
+          },
+        ],
+        isError: true,
+      };
     }
-    if (fresh.length) {
-      const css = `/* ${family} — via ${resolved.provider} */\n${fresh.join("\n\n")}\n`;
-      sheet = sheet ? `${sheet.replace(/\n*$/, "\n")}\n${css}` : css;
-    }
-    if (fresh.length || updated) await writeFile(cssPath, sheet);
     const skipped = blocks.length - fresh.length - updated;
 
     const fallbacks = resolved.fallbacks?.length
@@ -1220,7 +1340,7 @@ server.registerTool(
             `CSS in ${cssPath}: ${fresh.length} rule(s) added, ${updated} updated, ` +
             `${skipped} already present. Import it, then use:\n` +
             `  font-family: '${family}'${fallbacks};\n\n` +
-            `Make sure ${basename(targetDir)} is served at ${urlPrefix}.` +
+            `Make sure ${basename(targetDir)} is served at ${urlPrefix || "/"}.` +
             reachability,
         },
       ],

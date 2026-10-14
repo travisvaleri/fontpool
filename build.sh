@@ -32,6 +32,16 @@ if [ "$SRVVER" != "$VERSION" ]; then
   exit 1
 fi
 
+# server.json is the MCP registry's copy and ships nothing into the bundle, but
+# a registry entry pointing at the wrong npm version is its own kind of broken.
+# It carries the version twice, and neither copy is covered above.
+REGVER="$(node -p "require('$SRC/server.json').version")"
+REGPKGVER="$(node -p "require('$SRC/server.json').packages[0].version")"
+if [ "$REGVER" != "$VERSION" ] || [ "$REGPKGVER" != "$VERSION" ]; then
+  echo "version mismatch: server.json $REGVER / packages[0] $REGPKGVER vs manifest.json $VERSION" >&2
+  exit 1
+fi
+
 mkdir -p "$STAGE/server"
 cp "$SRC/manifest.json" "$STAGE/manifest.json"
 cp "$SRC/server.mjs" "$STAGE/server/server.mjs"

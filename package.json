@@ -1,6 +1,6 @@
 {
   "name": "fontpool",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "MCP server that searches Fontshare, Fontsource and Google as one catalog with categories, tags and foundry descriptions, downloads real woff2 files into your project and writes the @font-face rules.",
   "type": "module",
   "license": "MIT",

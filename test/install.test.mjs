@@ -4,11 +4,14 @@
 // literal.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFile, readdir, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { writeFile, readdir, mkdir, access } from "node:fs/promises";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { startServer, workspace, rules, faceKey, SKIP_NETWORK } from "./helpers.mjs";
 
 const net = { skip: SKIP_NETWORK && "FONTPOOL_SKIP_NETWORK_TESTS is set" };
+
+const exists = (p) => access(p).then(() => true, () => false);
 
 // Fontshare serves Satoshi with no subsets, so 400 + 700 is exactly two faces.
 const SATOSHI = { family: "Satoshi", weights: ["400", "700"], styles: ["normal"] };
@@ -231,6 +234,52 @@ test("a stylesheet something imports draws no warning", net, async () => {
     const r = await s.call("install_font", { ...SATOSHI, targetDir: ws.fonts, cssPath: ws.css });
     assert.equal(r.isError, false, r.text);
     assert.doesNotMatch(r.text, /Nothing under the workspace root references/);
+  } finally {
+    await s.close();
+  }
+});
+
+test("a urlPrefix with a trailing slash does not double up in the URL", net, async () => {
+  // '/fonts/' + '/' + the filename produced url('/fonts//satoshi-400.woff2').
+  const ws = await workspace();
+  const s = await startServer({ root: ws.dir });
+  try {
+    const r = await s.call("install_font", {
+      ...SATOSHI,
+      targetDir: ws.fonts,
+      cssPath: ws.css,
+      urlPrefix: "/fonts/",
+    });
+    assert.equal(r.isError, false, r.text);
+    const css = await ws.read();
+    assert.equal(css.match(/url\('\/fonts\/satoshi-/g)?.length, 2, css);
+    assert.doesNotMatch(css, /url\('[^']*\/\//);
+  } finally {
+    await s.close();
+  }
+});
+
+test("a failed download leaves no files and no stylesheet", net, async () => {
+  // Every .woff2 answers with an HTML error page under HTTP 200. Before the
+  // magic-number check those bytes were written out as fonts and given rules;
+  // before the download phase was hoisted out of the write loop, a failure
+  // partway through left the files it had already written with nothing
+  // referencing them.
+  const ws = await workspace();
+  const s = await startServer({
+    root: ws.dir,
+    nodeArgs: [
+      "--import",
+      join(dirname(fileURLToPath(import.meta.url)), "fixtures", "no-fonts.mjs"),
+    ],
+  });
+  try {
+    const r = await s.call("install_font", { ...SATOSHI, targetDir: ws.fonts, cssPath: ws.css });
+    assert.equal(r.isError, true, r.text);
+    assert.match(r.text, /failed to download, so nothing was written/);
+    assert.match(r.text, /HTML or JSON response/);
+    assert.equal(await exists(ws.fonts), false, "the target directory was created anyway");
+    assert.equal(await exists(ws.css), false, "the stylesheet was written anyway");
   } finally {
     await s.close();
   }

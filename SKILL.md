@@ -155,6 +155,9 @@ name.
   re-guessing.
 - **"exists, but not in the combination you asked for"** — the family is right
   and the weights are wrong. Read the weights it lists; do not re-check the name.
+- **"failed to download, so nothing was written"** — a CDN hiccup, not a bad
+  name. Nothing reached the disk, so re-running the same call is safe; if it
+  repeats, say so rather than quietly installing a different family instead.
 - **Empty catalog** — the provider APIs are unreachable. Say so; don't fall
   back to a hardcoded font name without telling the user it is unverified.
 - **No workspace root** — `install_font` needs absolute paths. Ask for the

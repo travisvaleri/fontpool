@@ -2,9 +2,9 @@
   "manifest_version": "0.2",
   "name": "fontpool",
   "display_name": "Fontpool",
-  "version": "1.4.0",
-  "description": "Search Fontshare, Fontsource, Google and Bunny in one catalog, then download fonts into your project and write the @font-face rules.",
-  "long_description": "Gives Claude three tools for working with type: list_fonts to see every family available across the configured providers, font_properties to check a family's weights, styles and subsets, and install_font to download the actual woff2 files into a project folder and append the matching @font-face rules to a CSS file.\n\nFonts are self-hosted \u2014 no CDN request at runtime. Built on unifont.\n\nAdobe Fonts is deliberately not included: Adobe's terms require their fonts be loaded from their own CDN via a kit embed, so they can't be downloaded into a project.",
+  "version": "1.4.1",
+  "description": "Search Fontshare, Fontsource and Google as one catalog with categories, tags and foundry descriptions, then download woff2 files into your project and write the @font-face rules.",
+  "long_description": "Gives Claude three tools for working with type: list_fonts to search every family the providers carry between them — by category, use-case tag, variable axis or provider — font_properties to read one family's weights, styles, subsets, variable axes and the foundry's own description of the design, and install_font to download the actual woff2 files into a project folder and write the matching @font-face rules into a stylesheet.\n\nFonts are self-hosted — no CDN request at runtime. Built on unifont.\n\nAdobe Fonts is deliberately not included: Adobe's terms require their fonts be loaded from their own CDN via a kit embed, so they can't be downloaded into a project.",
   "author": {
     "name": "Travis"
   },
@@ -14,7 +14,8 @@
     "typography",
     "webfonts",
     "fontshare",
-    "fontsource"
+    "fontsource",
+    "variable-fonts"
   ],
   "server": {
     "type": "node",
@@ -30,15 +31,15 @@
   "tools": [
     {
       "name": "list_fonts",
-      "description": "Lists every font family available across the configured providers."
+      "description": "Searches every family the providers carry, filtered by category, use-case tag, variable axis or provider."
     },
     {
       "name": "font_properties",
-      "description": "Returns the weights, styles, subsets and serving provider for one family."
+      "description": "Returns one family's weights, styles, subsets, variable axes, foundry and description."
     },
     {
       "name": "install_font",
-      "description": "Downloads a family's woff2 files into the project and writes the CSS."
+      "description": "Downloads a family's woff2 files into the project and writes the @font-face rules."
     }
   ],
   "compatibility": {
