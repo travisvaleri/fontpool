@@ -32,7 +32,7 @@
     "claude"
   ],
   "bin": {
-    "fontpool": "./server.mjs"
+    "fontpool": "server.mjs"
   },
   "files": [
     "server.mjs",
