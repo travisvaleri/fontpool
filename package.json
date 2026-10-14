@@ -1,0 +1,53 @@
+{
+  "name": "fontpool-mcp",
+  "version": "1.1.0",
+  "description": "MCP server that searches Fontshare, Fontsource, Google and Bunny in one catalog, downloads real woff2 files into your project and writes the @font-face rules.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Travis Valeri",
+  "mcpName": "io.github.travisvaleri/fontpool-mcp",
+  "homepage": "https://github.com/travisvaleri/fontpool-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/travisvaleri/fontpool-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/travisvaleri/fontpool-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "mcp-server",
+    "fonts",
+    "typography",
+    "webfonts",
+    "font-face",
+    "woff2",
+    "fontshare",
+    "fontsource",
+    "google-fonts",
+    "bunny-fonts",
+    "unifont",
+    "self-hosted",
+    "claude"
+  ],
+  "bin": {
+    "fontpool-mcp": "./server.mjs"
+  },
+  "files": [
+    "server.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "unifont": "^0.8.3",
+    "zod": "^3.23.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

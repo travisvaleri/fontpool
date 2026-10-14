@@ -1,0 +1,4 @@
+node_modules/
+*.mcpb
+.DS_Store
+npm-debug.log*
