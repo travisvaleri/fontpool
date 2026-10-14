@@ -1,16 +1,16 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.travisvaleri/fontpool-mcp",
+  "name": "io.github.travisvaleri/fontpool",
   "description": "MCP server that searches Fontshare, Fontsource, Google and Bunny in one catalog, downloads real woff2 files into your project and writes the @font-face rules.",
   "repository": {
-    "url": "https://github.com/travisvaleri/fontpool-mcp",
+    "url": "https://github.com/travisvaleri/fontpool",
     "source": "github"
   },
   "version": "1.1.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "fontpool-mcp",
+      "identifier": "fontpool",
       "version": "1.1.0",
       "transport": {
         "type": "stdio"

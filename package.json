@@ -1,18 +1,18 @@
 {
-  "name": "fontpool-mcp",
+  "name": "fontpool",
   "version": "1.1.0",
   "description": "MCP server that searches Fontshare, Fontsource, Google and Bunny in one catalog, downloads real woff2 files into your project and writes the @font-face rules.",
   "type": "module",
   "license": "MIT",
   "author": "Travis Valeri",
-  "mcpName": "io.github.travisvaleri/fontpool-mcp",
-  "homepage": "https://github.com/travisvaleri/fontpool-mcp#readme",
+  "mcpName": "io.github.travisvaleri/fontpool",
+  "homepage": "https://github.com/travisvaleri/fontpool#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/travisvaleri/fontpool-mcp.git"
+    "url": "git+https://github.com/travisvaleri/fontpool.git"
   },
   "bugs": {
-    "url": "https://github.com/travisvaleri/fontpool-mcp/issues"
+    "url": "https://github.com/travisvaleri/fontpool/issues"
   },
   "keywords": [
     "mcp",
@@ -32,7 +32,7 @@
     "claude"
   ],
   "bin": {
-    "fontpool-mcp": "./server.mjs"
+    "fontpool": "./server.mjs"
   },
   "files": [
     "server.mjs",

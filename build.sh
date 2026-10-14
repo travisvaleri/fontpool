@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Package fontpool-mcp into a .mcpb bundle.
+# Package Fontpool into a .mcpb bundle.
 #
 # Why this exists: the server that Claude actually runs is the *installed
 # extension*, not this directory. Editing server.mjs here and restarting

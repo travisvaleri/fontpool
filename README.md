@@ -1,4 +1,4 @@
-# fontpool-mcp
+# Fontpool
 
 An MCP server for working with type. It searches four font providers as one
 catalog, downloads the actual `woff2` files into your project, and writes the
@@ -29,7 +29,7 @@ them, so Adobe is left out rather than half-supported.
 Needs Node 20 or newer. No API keys, no accounts.
 
 ```bash
-npx -y fontpool-mcp
+npx -y fontpool
 ```
 
 That is also the command to put in a client config.
@@ -37,7 +37,7 @@ That is also the command to put in a client config.
 ### Claude Code
 
 ```bash
-claude mcp add fontpool -- npx -y fontpool-mcp
+claude mcp add fontpool -- npx -y fontpool
 ```
 
 ### Claude Desktop
@@ -50,7 +50,7 @@ claude mcp add fontpool -- npx -y fontpool-mcp
   "mcpServers": {
     "fontpool": {
       "command": "npx",
-      "args": ["-y", "fontpool-mcp"]
+      "args": ["-y", "fontpool"]
     }
   }
 }
@@ -65,7 +65,7 @@ Same shape, in that client's MCP config:
   "mcpServers": {
     "fontpool": {
       "command": "npx",
-      "args": ["-y", "fontpool-mcp"]
+      "args": ["-y", "fontpool"]
     }
   }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * fontpool-mcp — find a font across providers, download it, wire up the CSS.
+ * Fontpool — find a font across providers, download it, wire up the CSS.
  *
  *   npm install unifont @modelcontextprotocol/sdk zod
  *
